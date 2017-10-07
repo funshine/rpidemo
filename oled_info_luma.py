@@ -1,4 +1,4 @@
-#!/usr/bin/python/
+#!/usr/bin/python
 # coding: utf-8
 import os
 import time
@@ -11,6 +11,7 @@ from luma.core.interface.serial import i2c, spi
 from luma.core.render import canvas
 from luma.oled.device import ssd1306, ssd1325, ssd1331, sh1106
 from PIL import ImageFont
+import mqtt_client as mc
 
 def raminfo():
     with open('/proc/meminfo') as f:
@@ -56,33 +57,51 @@ def make_font(name, size):
     return ImageFont.truetype(font_path, size)
 def do_nothing(obj):
     pass
-IP = requests.get('http://ip.3322.net').text
 
-# rev.1 users set port=0
-# substitute spi(device=0, port=0) below if using that interface
-# serial = i2c(port=1, address=0x3C)
-serial = spi(device=0, port=0)
+def main():
+    client = mc.init()
+    client.connect("10.0.0.5")
+    # client.loop_forever()
+    client.loop_start()
+    IP = requests.get('http://ip.3322.net').text.rstrip()
+    print(IP)
 
-# substitute ssd1331(...) or sh1106(...) below if using that device
-# device = ssd1306(serial, rotate=1)
-device = sh1106(serial)
-# device.cleanup = do_nothing
+    # rev.1 users set port=0
+    # substitute spi(device=0, port=0) below if using that interface
+    # serial = i2c(port=1, address=0x3C)
+    serial = spi(device=0, port=0)
 
-font = make_font("code2000.ttf", 12)
-# font2 = make_font("tiny.ttf", 8)
-font2 = ImageFont.load_default()
-while True:
-    with canvas(device) as draw:
-        # Initialize background.
-        draw.rectangle(device.bounding_box, outline=0, fill=0)
-        padding = 1
-        top = padding
-        x = padding
-        draw.text((x, top), time.strftime(" %Y-%m-%d %H:%M:%S ",time.localtime(time.time())), font=font, fill=255)
-        draw.text((x, top+14), platform.system() + ' ' + platform.release(), font=font2, fill=255)
-        draw.text((x, top+24), 'disk:' + diskinfo() + '  RAM:' + raminfo(), font=font2, fill=255)
-        draw.text((x, top+34), 'temp:' + cputemp() + 'C  CPU:' + cpuinfo(), font=font2, fill=255)
-        # draw.text((x, top+44), 'signal:' + '-60' + 'dBm', font=font2, fill=255)
-        draw.text((x, top+44), 'LAN:' + get_ip_address('eth0'), font=font2, fill=255)
-        draw.text((x, top+54), 'WAN:' + IP, font=font2, fill=255)
-        time.sleep(1)
+    # substitute ssd1331(...) or sh1106(...) below if using that device
+    # device = ssd1306(serial, rotate=1)
+    device = sh1106(serial)
+    # device.cleanup = do_nothing
+
+    font = make_font("code2000.ttf", 12)
+    # font2 = make_font("tiny.ttf", 8)
+    font2 = ImageFont.load_default()
+    try:
+        while True:
+            with canvas(device) as draw:
+                # Initialize background.
+                draw.rectangle(device.bounding_box, outline=0, fill=0)
+                padding = 1
+                top = padding
+                x = padding
+                draw.text((x, top), time.strftime(" %Y-%m-%d %H:%M:%S ",time.localtime(time.time())), font=font, fill=255)
+                # draw.text((x, top+14), platform.system() + ' ' + platform.release(), font=font2, fill=255)
+                draw.text((x, top+14), mc.info, font=font2, fill=255)
+                draw.text((x, top+24), 'disk:' + diskinfo() + '  RAM:' + raminfo(), font=font2, fill=255)
+                draw.text((x, top+34), 'temp:' + cputemp() + 'C  CPU:' + cpuinfo(), font=font2, fill=255)
+                # draw.text((x, top+44), 'signal:' + '-60' + 'dBm', font=font2, fill=255)
+                draw.text((x, top+44), 'LAN:' + get_ip_address('eth0'), font=font2, fill=255)
+                draw.text((x, top+54), 'WAN:' + IP, font=font2, fill=255)
+                time.sleep(1)
+    finally:
+        print("\nExit!")
+        mc.led.close()
+        client.loop_stop()
+        client.disconnect()
+
+if __name__ == '__main__':
+    main()
+

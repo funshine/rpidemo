@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 import paho.mqtt.client as mqtt
@@ -14,3 +14,16 @@ sleep(2)
 
 # 关闭LED
 client.publish('rpi2-zerodayhong/led', 0)
+
+sleep(2)
+
+client.publish('rpi2-zerodayhong/info', 'Info from mqtt')
+
+while True:
+    msg = raw_input('Enter info: ')
+    print(msg)
+    if msg == "1":
+        client.publish('rpi2-zerodayhong/led', 1)
+    elif  msg == "0":
+        client.publish('rpi2-zerodayhong/led', 0)
+    client.publish('rpi2-zerodayhong/info', msg)

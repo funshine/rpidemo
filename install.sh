@@ -10,7 +10,7 @@ sudo apt update
 # sudo apt -y install vim
 
 # install mqtt lib
-# pip install paho-mqtt
+pip install paho-mqtt
 
 # # ------------------Adafruit_Python_SSD1306-------------------
 # # install some python lib
