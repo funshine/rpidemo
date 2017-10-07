@@ -8,29 +8,38 @@ import paho.mqtt.client as mqtt
 # from gpiozero import LED
 
 import RPi.GPIO as GPIO
+
+
 class LED:
     def __init__(self, pin):
         self.pin = pin
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, GPIO.LOW)
+
     def on(self):
         GPIO.output(self.pin, GPIO.HIGH)
+
     def off(self):
         GPIO.output(self.pin, GPIO.LOW)
+
     def close(self):
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin, GPIO.IN)
+
 
 led = LED(17)
 info = "mqtt"
 
 # 设备连接上MQTT服务器时的回调函数
+
+
 def on_connect(client, userdata, flags, rc):
-    print("Connected with result code "+str(rc))
+    print("Connected with result code " + str(rc))
     # 订阅TOPIC
     client.subscribe("rpi2-zerodayhong/#")
     # client.subscribe("rpi2-zerodayhong/led")
+
 
 def on_message_led(client, userdata, msg):
     """
@@ -42,14 +51,15 @@ def on_message_led(client, userdata, msg):
         # new_state = ord(msg.payload) - ord("0")
         new_state = int(msg.payload)
         # print(msg.payload, new_state)
-        if new_state == 1 :
+        if new_state == 1:
             # print("turn on led")
             led.on()
-        elif new_state == 0 :
+        elif new_state == 0:
             # print("turn off led")
             led.off()
     except TypeError:
         print('unknown msg in topic led')
+
 
 def on_message_info(client, userdata, msg):
     """
@@ -69,8 +79,11 @@ def on_message_info(client, userdata, msg):
         print('unknown msg in topic info')
 
 # 收到订阅消息时的回调函数
+
+
 def on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.payload))
+    print(msg.topic + " " + str(msg.payload))
+
 
 def init():
     led.off()
@@ -81,6 +94,7 @@ def init():
     client.on_message = on_message
     client.username_pw_set('rpi2-zerodayhong', 'rpi2rpi2')
     return client
+
 
 if __name__ == '__main__':
     try:

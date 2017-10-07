@@ -24,6 +24,6 @@ while True:
     print(msg)
     if msg == "1":
         client.publish('rpi2-zerodayhong/led', 1)
-    elif  msg == "0":
+    elif msg == "0":
         client.publish('rpi2-zerodayhong/led', 0)
     client.publish('rpi2-zerodayhong/info', msg)

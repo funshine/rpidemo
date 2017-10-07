@@ -15,7 +15,8 @@ SPI_PORT = 0
 SPI_DEVICE = 0
 
 # 128x64 display with hardware SPI:
-disp = Adafruit_SSD1306.SSD1306_128_64(rst=RST, dc=DC, spi=SPI.SpiDev(SPI_PORT, SPI_DEVICE, max_speed_hz=8000000))
+disp = Adafruit_SSD1306.SSD1306_128_64(
+    rst=RST, dc=DC, spi=SPI.SpiDev(SPI_PORT, SPI_DEVICE, max_speed_hz=8000000))
 
 # Initialize library.
 disp.begin()
@@ -34,7 +35,7 @@ image = Image.new('1', (width, height))
 draw = ImageDraw.Draw(image)
 
 # Draw a black filled box to clear the image.
-draw.rectangle((0,0,width,height), outline=0, fill=0)
+draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
 # Draw some shapes.
 # First define some constants to allow easy resizing of shapes.
@@ -49,11 +50,11 @@ font = ImageFont.load_default()
 #font = ImageFont.truetype('Minecraftia.ttf', 8)
 
 draw.text((x, top), 'This is first line', font=font, fill=255)
-draw.text((x, top+10), 'This is second line', font=font, fill=255)
-draw.text((x, top+20), 'This is third line', font=font, fill=255)
-draw.text((x, top+30), 'This is fourth line', font=font, fill=255)
-draw.text((x, top+40), 'This is fifth line', font=font, fill=255)
-draw.text((x, top+50), 'This is last line', font=font, fill=255)
+draw.text((x, top + 10), 'This is second line', font=font, fill=255)
+draw.text((x, top + 20), 'This is third line', font=font, fill=255)
+draw.text((x, top + 30), 'This is fourth line', font=font, fill=255)
+draw.text((x, top + 40), 'This is fifth line', font=font, fill=255)
+draw.text((x, top + 50), 'This is last line', font=font, fill=255)
 
 # Display image.
 disp.image(image)

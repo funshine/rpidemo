@@ -6,8 +6,10 @@ from luma.core.interface.serial import i2c, spi
 from luma.core.render import canvas
 from luma.oled.device import ssd1306, ssd1325, ssd1331, sh1106
 
+
 def do_nothing(obj):
     pass
+
 
 # rev.1 users set port=0
 # substitute spi(device=0, port=0) below if using that interface
