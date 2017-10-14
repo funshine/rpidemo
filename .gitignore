@@ -102,3 +102,6 @@ ENV/
 
 .vscode
 .DS_Store
+
+*.pyc
+warm_client/

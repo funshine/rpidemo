@@ -35,6 +35,4 @@ sudo -H pip install --upgrade pip
 # sudo apt-get purge python-pip
 # sudo -H pip install --upgrade luma.oled
 pip install --upgrade luma.oled
-pip install --upgrade luma.oled
-pip install --upgrade luma.oled
 # # --------------------------END-------------------------------

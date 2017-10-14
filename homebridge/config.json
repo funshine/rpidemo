@@ -1,0 +1,50 @@
+{
+    "bridge": {
+        "name": "Homebridge",
+        "username": "B6:25:E9:9D:84:00",
+        "port": 51826,
+        "pin": "012-34-567",
+        "manufacturer": "@nfarina",
+        "model": "Homebridge",
+        "serialNumber": "Not Specified",
+        "firmwareRevision": "0.4.27",
+        "hardwareRevision": "<optional>"
+    },
+    
+    "description": "This is my home",
+
+    "accessories": [
+        {
+            "accessory": "blinkLED",
+            "name": "蓝灯",
+            "pins": [17],
+            "minInterval": 100,
+            "maxInterval": 2000,
+            "mapping": "gpio"
+        },
+        {
+            "accessory": "blinkLED",
+            "name": "红灯",
+            "pins": [27],
+            "minInterval": 100,
+            "maxInterval": 2000,
+            "mapping": "gpio"
+        },
+        {
+            "accessory": "blinkLED",
+            "name": "绿灯",
+            "pins": [22],
+            "minInterval": 100,
+            "maxInterval": 2000,
+            "mapping": "gpio"
+        },
+        {
+            "accessory": "blinkLED",
+            "name": "黄灯",
+            "pins": [23],
+            "minInterval": 100,
+            "maxInterval": 2000,
+            "mapping": "gpio"
+        }
+    ]
+}
