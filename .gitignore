@@ -104,4 +104,4 @@ ENV/
 .DS_Store
 
 *.pyc
-warm_client/
+warm_*
