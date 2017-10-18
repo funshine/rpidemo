@@ -65,7 +65,7 @@ class ClientSendThread(threading.Thread):
 
         try:
             while self.running:
-                time.sleep(2)
+                time.sleep(5)
                 if len(self.data) == 0:
                     self.data.append(get_command(1, 0, 0, 1))
                 for d in self.data:

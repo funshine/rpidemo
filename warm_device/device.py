@@ -2,6 +2,10 @@
 # coding: utf-8
 import struct
 import crc
+import threading
+import time
+import serial
+import sys
 
 # method to format hex
 
@@ -11,6 +15,20 @@ def fmt2hex(str):
         return ':'.join(x.encode('hex') for x in str)  # python 2
         # return ':'.join(hex(x) for x in str) # python 3
     return None
+
+# method to genderate command
+
+
+def get_command(addr, dev, val, func):
+    # construct the bit-stream of an instruction
+    if func == 0x01:
+        PLUS = 0
+    else:
+        PLUS = 7 << 5
+    cmd = struct.pack('6B', PLUS + addr, 0x06, dev, 0x04, func, val)
+    _crc = crc.calc_string(cmd, crc.INITIAL_MODBUS)
+    _crc = ((_crc & 0XFF) << 8) + ((_crc & 0xFF00) >> 8)
+    return cmd + struct.pack('H', _crc)
 
 
 class Panel:
@@ -54,6 +72,30 @@ class Panel:
         if self.notify is True:
             self.notify = False
         return body
+
+
+def testpanel():
+    p1 = Panel(1)
+    print(p1)
+    print(fmt2hex(p1.pack()))
+    print(p1.key, p1.temp, p1.tempset, p1.switchon, p1.tryheating)
+    p1.switch(0)
+    print("after switch off")
+    print(p1)
+    print(fmt2hex(p1.pack()))
+    p1.switch(1)
+    p1.settemp(17)
+    print("after switch on, temp->17")
+    print(p1)
+    print(fmt2hex(p1.pack()))
+    p1.sense(22)
+    print("sense 22")
+    print(p1)
+    print(fmt2hex(p1.pack()))
+    p1.sense(10)
+    print("sense 10")
+    print(p1)
+    print(fmt2hex(p1.pack()))
 
 
 class Device:
@@ -120,9 +162,13 @@ class Device:
                 elif func == 0x02:
                     # switch on/off
                     panel.switch(val)
+                    print("Remote set:")
+                    print(panel)
                 elif func == 0x04:
                     # set temp
                     panel.settemp(val)
+                    print("Remote set:")
+                    print(panel)
                 else:
                     pass
             body += panel.pack()
@@ -131,44 +177,6 @@ class Device:
         _crc = ((_crc & 0XFF) << 8) + ((_crc & 0xFF00) >> 8)
 
         return h + body + struct.pack('H', _crc)
-
-
-def testpanel():
-    p1 = Panel(1)
-    print(p1)
-    print(fmt2hex(p1.pack()))
-    print(p1.key, p1.temp, p1.tempset, p1.switchon, p1.tryheating)
-    p1.switch(0)
-    print("after switch off")
-    print(p1)
-    print(fmt2hex(p1.pack()))
-    p1.switch(1)
-    p1.settemp(17)
-    print("after switch on, temp->17")
-    print(p1)
-    print(fmt2hex(p1.pack()))
-    p1.sense(22)
-    print("sense 22")
-    print(p1)
-    print(fmt2hex(p1.pack()))
-    p1.sense(10)
-    print("sense 10")
-    print(p1)
-    print(fmt2hex(p1.pack()))
-
-# method to genderate command
-
-
-def get_command(addr, dev, val, func):
-    # construct the bit-stream of an instruction
-    if func == 0x01:
-        PLUS = 0
-    else:
-        PLUS = 7 << 5
-    cmd = struct.pack('6B', PLUS + addr, 0x06, dev, 0x04, func, val)
-    _crc = crc.calc_string(cmd, crc.INITIAL_MODBUS)
-    _crc = ((_crc & 0XFF) << 8) + ((_crc & 0xFF00) >> 8)
-    return cmd + struct.pack('H', _crc)
 
 
 def testdevice():
@@ -232,23 +240,182 @@ def testdevice():
     cmd = get_command(1, 0, 0, 1)
     print(fmt2hex(d.process(cmd)))
 
-def adjust():
-    while True:
+
+class InputThread(threading.Thread):
+    def __init__(self, dev):
+        threading.Thread.__init__(self)
+        self.running = False
+        self.sensemode = True
+        self.device = dev
+
+    def run(self):
+        self.running = True
+        func = 0x01
+        val = 0
+        while self.running:
+            try:
+                vals = raw_input(
+                    'Enter key, value(temperature/on/off), seperate with space: ').split()
+            except KeyboardInterrupt:
+                print("User abort!")
+
+            print(vals)
+            if len(vals) == 1 and vals[0].upper() == 'S':
+                self.sensemode = not self.sensemode
+                print("Sense mode: ", self.sensemode)
+                continue
+
+            if len(vals) < 2:
+                print("Must provide key and value")
+                continue
+            try:
+                key = int(vals[0])
+                print(key)
+            except ValueError as ve:
+                print('Key must be numbers')
+                print(ve)
+                continue
+
+            if self.sensemode:
+                try:
+                    temp = int(vals[1])
+                    func = 0x01
+                    val = temp
+                    print(temp)
+                except ValueError as ve:
+                    print('Values must be temperature')
+                    print(ve)
+                    continue
+            else:
+                if vals[1].upper() == 'ON':
+                    func = 0x02
+                    val = 1
+                    print(vals[1])
+                elif vals[1].upper() == 'OFF':
+                    func = 0x02
+                    val = 0
+                    print(vals[1])
+                else:
+                    try:
+                        temp = int(vals[1])
+                        func = 0x04
+                        val = temp
+                        print(temp)
+                    except ValueError as ve:
+                        print('Values must be temperature or "on"/"off"')
+                        print(ve)
+                        continue
+
+            for panel in self.device.panels:
+                if panel.getkey() == key:
+                    # send cmd to the panel
+                    if func == 0x01:
+                        # sense mode
+                        panel.sense(val)
+                        print("Local sense:")
+                        print(panel)
+                    if func == 0x02:
+                        # switch on/off
+                        panel.switch(val)
+                        print("Local set:")
+                        print(panel)
+                    elif func == 0x04:
+                        # set temp
+                        panel.settemp(val)
+                        print("Local set:")
+                        print(panel)
+                    else:
+                        pass
+
+
+class SerialThread(threading.Thread):
+    def __init__(self, dev, port, timeout):
+        threading.Thread.__init__(self)
+        self.running = False
+        self.device = dev
+        self.port = port
+        self.timeout = timeout
+        self.serial = None
+
+    def open(self):
         try:
-            key = int(raw_input('Enter device number: '))
-        except TypeError, ValueError:
-            print('unknown device number')
-        print(key)
+            self.serial = serial.Serial(port=self.port, timeout=self.timeout)
+            if self.serial.isOpen() == True:
+                print("serial port is already open, close and reopen")
+                self.serial.close()
+            
+            self.serial.open()
+        except serial.SerialException as e:
+            print("open function:")
+            sys.stderr.write(str(e) + '\n')
+
+    def close(self):
+        if self.serial is None:
+            return
         try:
-            temp = int(raw_input('Enter temperature: '))
-        except TypeError, ValueError:
-            print('unknown temperature')
-        print(temp)
+            self.serial.close()
+            print("close port success")
+        except serial.SerialException as e:
+            sys.stderr.write(str(e) + ' while closing serial port')
+
+    def run(self):
+        self.running = True
+        try:
+            self.open()
+        except serial.SerialException as se:
+            print("run function: ", se)
+            self.running = False
+
+        if self.serial is None:
+            return
+
+        while self.running:
+            try:
+                cmd = self.serial.read(8)
+                print("Receive from serial: ", fmt2hex(cmd))
+                result = self.device.process(cmd)
+                if result is None:
+                    continue
+                print("Send to serial: ", fmt2hex(result))
+                while result != '':
+                    n = self.serial.write(result)
+                    result = result[n:]
+
+            except serial.SerialTimeoutException as toe:
+                print(str(toe))
+                self.running = False
+            except serial.SerialException as se:
+                print(str(se))
+                self.running = False
+
 
 def main():
-    testpanel()
-    testdevice()
-    adjust()
+    # testpanel()
+    # testdevice()
+    warmdev = Device(1)
+    warmpanels = [Panel(1), Panel(2), Panel(3), Panel(4), Panel(5)]
+    for p in warmpanels:
+        warmdev.addpanel(p)
+
+    try:
+        cmdthread = InputThread(warmdev)
+        serthread = SerialThread(warmdev, "/dev/tty.usbserial-FTVLKNBG", 10)
+        cmdthread.start()
+        print("InputThread started")
+        serthread.start()
+        print("SerialThread started")
+        while 1:
+            time.sleep(.1)
+    except KeyboardInterrupt:
+        print("attempting to close threads.")
+        serthread.close()
+        cmdthread.running = False
+        serthread.running = False
+        cmdthread.join()
+        serthread.join()
+        print("threads successfully closed")
+    finally:
+        serthread.close()
 
 
 if __name__ == '__main__':
