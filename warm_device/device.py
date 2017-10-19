@@ -453,7 +453,7 @@ class SerialThread(threading.Thread):
 
 def main():
     # testpanel()
-    testdevice()
+    # testdevice()
     warmdev = Device(1)
     warmpanels = [Panel(1), Panel(2), Panel(3), Panel(4), Panel(5)]
     for p in warmpanels:

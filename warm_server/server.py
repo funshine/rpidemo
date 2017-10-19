@@ -30,16 +30,18 @@ class ClientReceiveThread(threading.Thread):
             return None
         header = data[:8]
         status = struct.unpack('1B', data[0:1])[0]
-        userid = struct.unpack('H', data[1:4])[0]
+        my_id = struct.unpack('3B', data[1:4])
+        userid = (my_id[0] << 16) + (my_id[1] << 8) + (my_id[2])
         num = struct.unpack('1B', data[4:5])[0]
         addr = struct.unpack('1B', data[5:6])[0]
-        length = struct.unpack('H', data[6:8])[0]
+        l = struct.unpack('2B', data[6:8])
+        length = (l[0] << 8) + (l[1])
         print("Header: " + fmt2hex(header))
-        print("Status: {}" %status)
-        print("Userid: {}" %userid)
-        print("Panel Number: {}" %num)
-        print("Device Addr: {}" %addr)
-        print("Pack Length: {}" %length)
+        print("Status: {0}".format(status))
+        print("Userid: {0}".format(userid))
+        print("Panel Number: {0}".format(num))
+        print("Device Addr: {0}".format(addr))
+        print("Pack Length: {0}".format(length))
         
         if datalen != length:
             print("Data length mismatch")
