@@ -22,6 +22,58 @@ class ClientReceiveThread(threading.Thread):
         self.running = False
         print("[+] New Receive thread started for " + ip + ":" + str(port))
 
+    def parse(self, data):
+        if data is None:
+            return None
+        datalen = len(data)
+        if datalen < 8:
+            return None
+        header = data[:8]
+        status = struct.unpack('1B', data[0:1])[0]
+        userid = struct.unpack('H', data[1:4])[0]
+        num = struct.unpack('1B', data[4:5])[0]
+        addr = struct.unpack('1B', data[5:6])[0]
+        length = struct.unpack('H', data[6:8])[0]
+        print("Header: " + fmt2hex(header))
+        print("Status: {}" %status)
+        print("Userid: {}" %userid)
+        print("Panel Number: {}" %num)
+        print("Device Addr: {}" %addr)
+        print("Pack Length: {}" %length)
+        
+        if datalen != length:
+            print("Data length mismatch")
+            return None
+        if datalen != 8 + 7 * num:
+            print("Panel Number mismatch data length")
+            return None
+        if num == 0:
+            print("Data has no panel info")
+            return None
+        start = 8
+        for i in range(0, num):
+            pdata = data[start:start+7]
+            print(self.parsepanel(pdata))
+            start += 7
+
+    def parsepanel(self, data):
+        if data is None:
+            return None
+        if len(data) != 7:
+            print("Panel data length mismatch")
+            return None
+        key = struct.unpack('1B', data[0:1])[0]
+        status = struct.unpack('1B', data[2:3])[0]
+        switchon = (status & 0x01) > 0
+        tryheating = (status & 0x04) > 0
+        temp = struct.unpack('1B', data[3:4])[0]
+        tempset = struct.unpack('1B', data[4:5])[0]
+        notify = struct.unpack('1B', data[6:7])[0]
+
+        return '''Panel {0}:\n  Switch \t{1}\t\tHeating {4}\n  Temperature: \t{2}\t\tSet: \t{3}\n'''\
+            .format(key, "on" if switchon else "off", temp, tempset, "yes" if tryheating else "no")
+
+
     def run(self):
         print("Connection from : " + ip + ":" + str(port))
         self.running = True
@@ -34,6 +86,7 @@ class ClientReceiveThread(threading.Thread):
             while len(data) and self.running:
                 data = self.socket.recv(2048)
                 print("Receive from client " + self.ip + ":" + str(self.port) + " : " + fmt2hex(data))
+                self.parse(data)
                 # readable, writable, expt = select.select([self.socket], [], [], 5)
                 # for r in readable:
                 #     data = r.recv(2048)

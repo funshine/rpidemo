@@ -20,7 +20,6 @@ try:
     # Connect to server and send data
     sock.connect((HOST, PORT))
     # sock.setblocking(0)
-    sock.sendall(data + "\n")
     received = None
 
     # Receive data from the server and shut down

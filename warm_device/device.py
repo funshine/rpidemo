@@ -4,7 +4,7 @@ import struct
 import crc
 import threading
 import time
-import serial
+# import serial
 import sys
 
 # method to format hex
@@ -39,6 +39,7 @@ class Panel:
         self.switchon = switchon
         self.tryheating = tempset > temp
         self.notify = False
+        self.data = ''
 
     def __repr__(self):
         return '''Panel {0}:\n  Switch \t{1}\t\tHeating {4}\n  Temperature: \t{2}\t\tSet: \t{3}\n'''\
@@ -47,7 +48,6 @@ class Panel:
     def settemp(self, tempset):
         self.tempset = tempset
         self.tryheating = self.tempset > self.temp
-        self.notify = True
 
     def sense(self, sense):
         self.temp = sense
@@ -55,12 +55,29 @@ class Panel:
 
     def switch(self, on):
         self.switchon = True if on != 0 else False
-        self.notify = True
 
     def getkey(self):
         return self.key
 
-    def pack(self):
+    def setnotify(self, notify):
+        self.notify = notify
+    
+    # called by local set
+    def prepack(self):
+        # before do any change, save the previous set pack
+        if self.notify:
+            self.data = None
+            self.data = self.pack(True)
+        else:
+            self.data = None
+
+    def pack(self, clear):
+        if self.data is not None:
+            res = self.data
+            self.data = None
+            if self.notify and clear:
+                self.notify = False
+            return res
         key = struct.pack('B', self.key)
         stub1 = struct.pack('B', 7)
         status = struct.pack(
@@ -69,7 +86,7 @@ class Panel:
         stub2 = struct.pack('B', 0xff)
         notify = struct.pack('B', (0b1 if self.notify else 0b0))
         body = key + stub1 + status + temp + stub2 + notify
-        if self.notify is True:
+        if self.notify and clear:
             self.notify = False
         return body
 
@@ -77,25 +94,25 @@ class Panel:
 def testpanel():
     p1 = Panel(1)
     print(p1)
-    print(fmt2hex(p1.pack()))
+    print(fmt2hex(p1.pack(True)))
     print(p1.key, p1.temp, p1.tempset, p1.switchon, p1.tryheating)
     p1.switch(0)
     print("after switch off")
     print(p1)
-    print(fmt2hex(p1.pack()))
+    print(fmt2hex(p1.pack(True)))
     p1.switch(1)
     p1.settemp(17)
     print("after switch on, temp->17")
     print(p1)
-    print(fmt2hex(p1.pack()))
+    print(fmt2hex(p1.pack(True)))
     p1.sense(22)
     print("sense 22")
     print(p1)
-    print(fmt2hex(p1.pack()))
+    print(fmt2hex(p1.pack(True)))
     p1.sense(10)
     print("sense 10")
     print(p1)
-    print(fmt2hex(p1.pack()))
+    print(fmt2hex(p1.pack(True)))
 
 
 class Device:
@@ -162,16 +179,24 @@ class Device:
                 elif func == 0x02:
                     # switch on/off
                     panel.switch(val)
-                    print("Remote set:")
+                    panel.setnotify(True)
+                    print("Remote switch set:")
                     print(panel)
                 elif func == 0x04:
                     # set temp
                     panel.settemp(val)
-                    print("Remote set:")
+                    panel.setnotify(True)
+                    print("Remote temperature set:")
                     print(panel)
                 else:
                     pass
-            body += panel.pack()
+            
+            if (key == 0) and (func == 0x01):
+                # a read cmd clear the notify flag after pack
+                body += panel.pack(True)
+            else:
+                # a non-read cmd will not touch notify flag
+                body += panel.pack(False)
 
         _crc = crc.calc_string(h + body, crc.INITIAL_MODBUS)
         _crc = ((_crc & 0XFF) << 8) + ((_crc & 0xFF00) >> 8)
@@ -239,6 +264,32 @@ def testdevice():
     p[4].settemp(0x18)
     cmd = get_command(1, 0, 0, 1)
     print(fmt2hex(d.process(cmd)))
+    for panel in p:
+        panel.switch(1)
+
+    print('-'*20)
+    cmd = get_command(1, 1, 15, 4)
+    print("cmd: ", fmt2hex(cmd))
+    print(fmt2hex(d.process(cmd)))
+    cmd = get_command(1, 0, 0, 1)
+    print("cmd: ", fmt2hex(cmd))
+    print(fmt2hex(d.process(cmd)))
+    cmd = get_command(1, 0, 0, 1)
+    print("cmd: ", fmt2hex(cmd))
+    print(fmt2hex(d.process(cmd)))
+    print('-'*20)
+    cmd = get_command(1, 1, 15, 4)
+    print("cmd: ", fmt2hex(cmd))
+    print(fmt2hex(d.process(cmd)))
+    cmd = get_command(1, 2, 16, 4)
+    print("cmd: ", fmt2hex(cmd))
+    print(fmt2hex(d.process(cmd)))
+    cmd = get_command(1, 0, 0, 1)
+    print("cmd: ", fmt2hex(cmd))
+    print(fmt2hex(d.process(cmd)))
+    cmd = get_command(1, 0, 0, 1)
+    print("cmd: ", fmt2hex(cmd))
+    print(fmt2hex(d.process(cmd)))
 
 
 class InputThread(threading.Thread):
@@ -255,7 +306,7 @@ class InputThread(threading.Thread):
         while self.running:
             try:
                 vals = raw_input(
-                    'Enter key, value(temperature/on/off), seperate with space: ').split()
+                    'Enter key, value(temperature/on/off), seperate with space:\n> ').split()
             except KeyboardInterrupt:
                 print("User abort!")
 
@@ -270,7 +321,7 @@ class InputThread(threading.Thread):
                 continue
             try:
                 key = int(vals[0])
-                print(key)
+                # print(key)
             except ValueError as ve:
                 print('Key must be numbers')
                 print(ve)
@@ -281,7 +332,7 @@ class InputThread(threading.Thread):
                     temp = int(vals[1])
                     func = 0x01
                     val = temp
-                    print(temp)
+                    # print(temp)
                 except ValueError as ve:
                     print('Values must be temperature')
                     print(ve)
@@ -290,11 +341,11 @@ class InputThread(threading.Thread):
                 if vals[1].upper() == 'ON':
                     func = 0x02
                     val = 1
-                    print(vals[1])
+                    # print(vals[1])
                 elif vals[1].upper() == 'OFF':
                     func = 0x02
                     val = 0
-                    print(vals[1])
+                    # print(vals[1])
                 else:
                     try:
                         temp = int(vals[1])
@@ -315,15 +366,23 @@ class InputThread(threading.Thread):
                         print("Local sense:")
                         print(panel)
                     if func == 0x02:
+                        panel.setnotify(True)
+                        panel.prepack() # clear notify flag automatically
                         # switch on/off
                         panel.switch(val)
-                        print("Local set:")
+                        print("Local switch set:")
                         print(panel)
+                        # print(fmt2hex(panel.pack(True)))
+                        # print(fmt2hex(panel.pack(True)))
                     elif func == 0x04:
+                        panel.setnotify(True)
+                        panel.prepack() # clear notify flag automatically
                         # set temp
                         panel.settemp(val)
-                        print("Local set:")
+                        print("Local temperature set:")
                         print(panel)
+                        # print(fmt2hex(panel.pack(True)))
+                        # print(fmt2hex(panel.pack(True)))
                     else:
                         pass
 
@@ -372,6 +431,9 @@ class SerialThread(threading.Thread):
         while self.running:
             try:
                 cmd = self.serial.read(8)
+                cmdlen = len(cmd)
+                while cmdlen < 8:
+                    cmd = cmd + self.serial.read(8 - cmdlen)
                 print("Receive from serial: ", fmt2hex(cmd))
                 result = self.device.process(cmd)
                 if result is None:
@@ -391,7 +453,7 @@ class SerialThread(threading.Thread):
 
 def main():
     # testpanel()
-    # testdevice()
+    testdevice()
     warmdev = Device(1)
     warmpanels = [Panel(1), Panel(2), Panel(3), Panel(4), Panel(5)]
     for p in warmpanels:
@@ -399,7 +461,7 @@ def main():
 
     try:
         cmdthread = InputThread(warmdev)
-        serthread = SerialThread(warmdev, "/dev/tty.usbserial-FTVLKNBG", 10)
+        serthread = SerialThread(warmdev, "/dev/tty.usbserial-FTVLKNBG", 20)
         cmdthread.start()
         print("InputThread started")
         serthread.start()
