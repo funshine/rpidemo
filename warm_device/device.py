@@ -4,7 +4,7 @@ import struct
 import crc
 import threading
 import time
-# import serial
+import serial
 import sys
 
 # method to format hex
