@@ -130,10 +130,11 @@ class ThermostatMQTTClient(mqtt.Client):
         for k, v in self.thermostat_info.items():
             if addr == v["addr"]:
                 data = self.thermostat_accessories[k].copy()
+                data.pop('TargetTemperature', None)
                 data["characteristic"] = characteristic
                 data["value"] = value
                 payload = json.dumps(data)
-                print(payload)
+                # print(payload)
                 self.publish("homebridge/to/set", payload)
 
     def parse(self, data):
@@ -195,19 +196,20 @@ class ThermostatMQTTClient(mqtt.Client):
         处理来自TOPIC homebridge/from/get 的信息
 
         """
-        print(msg.topic + ' : ' + msg.payload)
-        message = json.loads(msg.payload)
-        print(json.dumps(message, indent=4, sort_keys=True))
+        # print(msg.topic + ' : ' + msg.payload)
+        # message = json.loads(msg.payload)
+        # print(json.dumps(message, indent=4, sort_keys=True))
+        pass
 
     def on_message_from_set(self, mqttc, obj, msg):
         """
         处理来自TOPIC homebridge/from/set 的信息
 
         """
-        print(msg.topic + ' : ' + msg.payload)
+        # print(msg.topic + ' : ' + msg.payload)
         message = json.loads(msg.payload)
         if "name" in message and "characteristic" in message:
-            print(json.dumps(message, indent=4, sort_keys=True))
+            # print(json.dumps(message, indent=4, sort_keys=True))
             switchon = 0
             tempset = 0
             addr = 0
@@ -216,7 +218,7 @@ class ThermostatMQTTClient(mqtt.Client):
             th_characteristic = message["characteristic"]
             th_service_name = message["service_name"]
             th_value = message["value"]
-            print(th_name, th_characteristic, th_service_name, th_value)
+            # print(th_name, th_characteristic, th_service_name, th_value)
 
             for k, v in self.thermostat_info.items():
                 if th_name == k:
@@ -230,7 +232,7 @@ class ThermostatMQTTClient(mqtt.Client):
                 tempset = th_value
                 func = 0x04
                 cmd = get_command(1, addr, tempset, func)
-            print(addr, switchon, tempset)
+            # print(addr, switchon, tempset)
             print(fmt2hex(cmd))
         else:
             print("Unrecognized set:")
@@ -244,18 +246,20 @@ class ThermostatMQTTClient(mqtt.Client):
         # print(msg.topic + ' : ' + msg.payload)
         message = json.loads(msg.payload)
         if "ack" in message:
-            print("Response ack:")
-            print(json.dumps(message, indent=4, sort_keys=True))
+            # print("Response ack:")
+            # print(json.dumps(message, indent=4, sort_keys=True))
+            pass
         else:
-            print(json.dumps(message, indent=4, sort_keys=True))
+            # print(json.dumps(message, indent=4, sort_keys=True))
             for ts in self.thermostat_names:
                 if ts in message:
                     print(ts + " exists")
                 else:
                     print("add " + ts + " to home")
                     self.add_accessory(ts)
-            # time.sleep(5)
+            # time.sleep(1)
             # self.set_accessory_info()
+            # self.set_accessory(1, "CurrentTemperature", 22)
         # self.message_callback_del("homebridge/from/response")
 
     def on_connect(self, mqttc, obj, flags, rc):
@@ -273,13 +277,15 @@ class ThermostatMQTTClient(mqtt.Client):
         pass
 
     def on_publish(self, mqttc, obj, mid):
-        print("mid: " + str(mid))
+        # print("mid: " + str(mid))
+        pass
 
     def on_subscribe(self, mqttc, obj, mid, granted_qos):
-        print("Subscribed: " + str(mid) + " " + str(granted_qos))
+        # print("Subscribed: " + str(mid) + " " + str(granted_qos))
+        pass
 
     def on_log(self, mqttc, obj, level, string):
-        print("LOG: " + string)
+        # print("LOG: " + string)
         pass
 
     def run(self):
