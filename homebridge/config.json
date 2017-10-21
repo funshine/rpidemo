@@ -10,14 +10,14 @@
         "firmwareRevision": "0.4.27",
         "hardwareRevision": "<optional>"
     },
-    
     "description": "This is my home",
-
     "accessories": [
         {
             "accessory": "blinkLED",
             "name": "蓝灯",
-            "pins": [17],
+            "pins": [
+                17
+            ],
             "minInterval": 100,
             "maxInterval": 2000,
             "mapping": "gpio"
@@ -25,7 +25,9 @@
         {
             "accessory": "blinkLED",
             "name": "红灯",
-            "pins": [27],
+            "pins": [
+                27
+            ],
             "minInterval": 100,
             "maxInterval": 2000,
             "mapping": "gpio"
@@ -33,7 +35,9 @@
         {
             "accessory": "blinkLED",
             "name": "绿灯",
-            "pins": [22],
+            "pins": [
+                22
+            ],
             "minInterval": 100,
             "maxInterval": 2000,
             "mapping": "gpio"
@@ -41,10 +45,23 @@
         {
             "accessory": "blinkLED",
             "name": "黄灯",
-            "pins": [23],
+            "pins": [
+                23
+            ],
             "minInterval": 100,
             "maxInterval": 2000,
             "mapping": "gpio"
+        }
+    ],
+    "platforms": [
+        {
+            "platform": "mqtt",
+            "name": "mqtt",
+            "url": "mqtt://10.0.0.5",
+            "topic_type": "multiple",
+            "topic_prefix": "homebridge",
+            "username": "rpi2-zerodayhong",
+            "password": "rpi2rpi2"
         }
     ]
 }
