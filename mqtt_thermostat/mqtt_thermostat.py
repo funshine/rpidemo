@@ -6,39 +6,45 @@ import json
 import struct
 # 引入MQTT客户端
 import paho.mqtt.client as mqtt
+import crc
 
 
 class ThermostatMQTTClient(mqtt.Client):
     def __init__(self):
         mqtt.Client.__init__(self)
         self.thermostat_names = ["thermostat_diningroom", "thermostat_livingroom",
-                            "thermostat_studyroom", "thermostat_master_bedroom", "thermostat_secondary_bedroom"]
+                                 "thermostat_studyroom", "thermostat_master_bedroom", "thermostat_secondary_bedroom"]
 
         self.thermostat_accessories = {
             "thermostat_diningroom": {
                 "name": "thermostat_diningroom",
-                "service_name": "餐厅温控器",
-                "service": "Thermostat"
+                "service_name": "餐厅温度",
+                "service": "Thermostat",
+                "TargetTemperature": {"minValue":5, "maxValue": 35, "minStep": 1}
             },
             "thermostat_livingroom": {
                 "name": "thermostat_livingroom",
-                "service_name": "客厅温控器",
-                "service": "Thermostat"
+                "service_name": "客厅温度",
+                "service": "Thermostat",
+                "TargetTemperature": {"minValue":5, "maxValue": 35, "minStep": 1}
             },
             "thermostat_studyroom": {
                 "name": "thermostat_studyroom",
-                "service_name": "书房温控器",
-                "service": "Thermostat"
+                "service_name": "书房温度",
+                "service": "Thermostat",
+                "TargetTemperature": {"minValue":5, "maxValue": 35, "minStep": 1}
             },
             "thermostat_master_bedroom": {
                 "name": "thermostat_master_bedroom",
-                "service_name": "主卧温控器",
-                "service": "Thermostat"
+                "service_name": "主卧温度",
+                "service": "Thermostat",
+                "TargetTemperature": {"minValue":5, "maxValue": 35, "minStep": 1}
             },
             "thermostat_secondary_bedroom": {
                 "name": "thermostat_secondary_bedroom",
-                "service_name": "次卧温控器",
-                "service": "Thermostat"
+                "service_name": "次卧温度",
+                "service": "Thermostat",
+                "TargetTemperature": {"minValue":5, "maxValue": 35, "minStep": 1}
             }
         }
 
@@ -68,82 +74,18 @@ class ThermostatMQTTClient(mqtt.Client):
             }
         }
 
-    def on_message_from_get(self, mqttc, obj, msg):
+    def remove_accessories(self):
         """
-        处理来自TOPIC homebridge/from/get 的信息
-
+        topic: homebridge/to/remove
+        payload: {"name": "thermostat_livingroom"}
         """
-        print(msg.topic + ' : ' + msg.payload)
-        message = json.loads(msg.payload)
-        print(json.dumps(message, indent=4, sort_keys=True))
-        print(message.items())
-        try:
-            pass
-        except TypeError:
-            print('unknown msg in topic homebridge/from/get')
-
-    def on_message_from_set(self, mqttc, obj, msg):
-        """
-        处理来自TOPIC homebridge/from/set 的信息
-
-        """
-        print(msg.topic + ' : ' + msg.payload)
-        message = json.loads(msg.payload)
-        print(json.dumps(message, indent=4, sort_keys=True))
-        print(message.items())
-        try:
-            pass
-        except TypeError:
-            print('unknown msg in topic homebridge/from/set')
-
-    def on_message_from_response(self, mqttc, obj, msg):
-        """
-        处理来自TOPIC homebridge/from/response 的信息
-
-        """
-        # print(msg.topic + ' : ' + msg.payload)
-        message = json.loads(msg.payload)
-        if "ack" in message:
-            print("Response ack:")
-            print(json.dumps(message, indent=4, sort_keys=True))
-        else:
-            print(json.dumps(message, indent=4, sort_keys=True))
-            for ts in self.thermostat_names:
-                if ts in message:
-                    print(ts + " exists")
-                else:
-                    print("add " + ts + " to home")
-                    self.add_accessory(ts)
-            time.sleep(1)
-            self.set_accessory_info()
-            self.set_accessory(1, "CurrentTemperature", 21)
-            self.set_accessory(2, "CurrentTemperature", 22)
-            self.set_accessory(3, "CurrentTemperature", 23)
-            self.set_accessory(4, "CurrentTemperature", 24)
-            self.set_accessory(5, "CurrentTemperature", 25)
-
-            # 01:07:f3:14:0a:ff:00:
-            data = struct.pack('7B',1,7,0xf2,23,20,0xff,0)
-            self.parsepanel(data)
-
-        # self.message_callback_del("homebridge/from/response")
-        try:
-            pass
-        except TypeError:
-            print('unknown msg in topic homebridge/from/response')
-
-    def on_connect(self, mqttc, obj, flags, rc):
-        print("Connected with result code " + str(rc))
-
-        # Subscribing in on_connect() means that if we lose the connection and
-        # reconnect then subscriptions will be renewed.
-        # 订阅所有TOPIC
-        self.subscribe("homebridge/#")
-        self.get_accessories()
-
-    def on_message(self, mqttc, obj, msg):
-        # print(msg.topic + " " + str(msg.payload))
-        pass
+        for th in self.thermostat_names:
+            info = {
+                "name": th
+            }
+            # print(info)
+            payload = json.dumps(info)
+            self.publish("homebridge/to/remove", payload)
 
     def add_accessory(self, accessory):
         """
@@ -160,8 +102,7 @@ class ThermostatMQTTClient(mqtt.Client):
         payload: {"name": "*"}
         """
         payload = '{"name": "*"}'
-        self.message_callback_add(
-            "homebridge/from/response", self.on_message_from_response)
+        # self.message_callback_add("homebridge/from/response", self.on_message_from_response)
         self.publish("homebridge/to/get", payload)
 
     def set_accessory_info(self):
@@ -177,33 +118,23 @@ class ThermostatMQTTClient(mqtt.Client):
                 "serialnumber": self.thermostat_info[th]["serialnumber"],
                 "firmwareversion": self.thermostat_firmwareversion
             }
-            print(info)
-            self.publish("homebridge/to/set/accessoryinformation", json.dumps(info))
+            # print(info)
+            payload = json.dumps(info)
+            self.publish("homebridge/to/set/accessoryinformation", payload)
 
-    def on_publish(self, mqttc, obj, mid):
-        print("mid: " + str(mid))
-
-    def on_subscribe(self, mqttc, obj, mid, granted_qos):
-        print("Subscribed: " + str(mid) + " " + str(granted_qos))
-
-    def on_log(self, mqttc, obj, level, string):
-        print(string)
-
-    def run(self):
-        self.message_callback_add(
-            "homebridge/from/get", self.on_message_from_get)
-        self.message_callback_add(
-            "homebridge/from/set", self.on_message_from_set)
-        self.message_callback_add(
-            "homebridge/from/response", self.on_message_from_response)
-        self.username_pw_set('rpi2-zerodayhong', 'rpi2rpi2')
-        self.reconnect_delay_set()
-        self.connect("10.0.0.5")
-        # rc = 0
-        # while rc == 0:
-        #     rc = self.loop()
-        # return rc
-        self.loop_forever()
+    def set_accessory(self, addr, characteristic, value):
+        """
+        topic: homebridge/to/set
+        payload: {"name": "thermostat_livingroom", "service_name": "客厅温控器", "characteristic": "CurrentTemperature", "value": 20}
+        """
+        for k, v in self.thermostat_info.items():
+            if addr == v["addr"]:
+                data = self.thermostat_accessories[k].copy()
+                data["characteristic"] = characteristic
+                data["value"] = value
+                payload = json.dumps(data)
+                print(payload)
+                self.publish("homebridge/to/set", payload)
 
     def parse(self, data):
         if data is None:
@@ -224,7 +155,7 @@ class ThermostatMQTTClient(mqtt.Client):
         # print("Panel Number: {0}".format(num))
         # print("Device Addr: {0}".format(addr))
         # print("Pack Length: {0}".format(length))
-        
+
         if datalen != length:
             print("Data length mismatch")
             return None
@@ -236,7 +167,7 @@ class ThermostatMQTTClient(mqtt.Client):
             return None
         start = 8
         for i in range(0, num):
-            pdata = data[start:start+7]
+            pdata = data[start:start + 7]
             self.parsepanel(pdata)
             start += 7
 
@@ -249,31 +180,143 @@ class ThermostatMQTTClient(mqtt.Client):
         key = struct.unpack('1B', data[0:1])[0]
         status = struct.unpack('1B', data[2:3])[0]
         switchon = (status & 0x01) > 0
-        tryheating = (status & 0x04) > 0
+        # tryheating = (status & 0x04) > 0
         temp = struct.unpack('1B', data[3:4])[0]
         tempset = struct.unpack('1B', data[4:5])[0]
-        notify = struct.unpack('1B', data[6:7])[0]
+        # notify = struct.unpack('1B', data[6:7])[0]
 
         self.set_accessory(key, "CurrentTemperature", temp)
         self.set_accessory(key, "TargetTemperature", tempset)
-        self.set_accessory(key, "TargetHeatingCoolingState", 3 if switchon else 0)
+        self.set_accessory(key, "TargetHeatingCoolingState",
+                           3 if switchon else 0)
 
-        return '''Panel {0}:\n  Switch \t{1}\t\tHeating {4}\n  Temperature: \t{2}\t\tSet: \t{3}\n'''\
-            .format(key, "on" if switchon else "off", temp, tempset, "yes" if tryheating else "no")
+    def on_message_from_get(self, mqttc, obj, msg):
+        """
+        处理来自TOPIC homebridge/from/get 的信息
 
-    def set_accessory(self, addr, characteristic, value):
         """
-        topic: homebridge/to/set
-        payload: {"name": "thermostat_livingroom", "service_name": "客厅温控器", "characteristic": "CurrentTemperature", "value": 20}
+        print(msg.topic + ' : ' + msg.payload)
+        message = json.loads(msg.payload)
+        print(json.dumps(message, indent=4, sort_keys=True))
+
+    def on_message_from_set(self, mqttc, obj, msg):
         """
-        for k, v in self.thermostat_info.items():
-            if addr == v["addr"]:
-                data = self.thermostat_accessories[k].copy()
-                data["characteristic"] = characteristic
-                data["value"] = value
-                payload = json.dumps(data)
-                # print(payload)
-                self.publish("homebridge/to/set", payload)
+        处理来自TOPIC homebridge/from/set 的信息
+
+        """
+        print(msg.topic + ' : ' + msg.payload)
+        message = json.loads(msg.payload)
+        if "name" in message and "characteristic" in message:
+            print(json.dumps(message, indent=4, sort_keys=True))
+            switchon = 0
+            tempset = 0
+            addr = 0
+            func = 0x01
+            th_name = message["name"]
+            th_characteristic = message["characteristic"]
+            th_service_name = message["service_name"]
+            th_value = message["value"]
+            print(th_name, th_characteristic, th_service_name, th_value)
+
+            for k, v in self.thermostat_info.items():
+                if th_name == k:
+                    addr = v["addr"]
+            if th_characteristic == "TargetHeatingCoolingState":
+                # current I treat cooling as shutdown
+                switchon = 0 if (th_value == 0) or (th_value == 2) else 1
+                func = 0x02
+                cmd = get_command(1, addr, switchon, func)
+            elif th_characteristic == "TargetTemperature":
+                tempset = th_value
+                func = 0x04
+                cmd = get_command(1, addr, tempset, func)
+            print(addr, switchon, tempset)
+            print(fmt2hex(cmd))
+        else:
+            print("Unrecognized set:")
+            print(json.dumps(message, indent=4, sort_keys=True))
+
+    def on_message_from_response(self, mqttc, obj, msg):
+        """
+        处理来自TOPIC homebridge/from/response 的信息
+
+        """
+        # print(msg.topic + ' : ' + msg.payload)
+        message = json.loads(msg.payload)
+        if "ack" in message:
+            print("Response ack:")
+            print(json.dumps(message, indent=4, sort_keys=True))
+        else:
+            print(json.dumps(message, indent=4, sort_keys=True))
+            for ts in self.thermostat_names:
+                if ts in message:
+                    print(ts + " exists")
+                else:
+                    print("add " + ts + " to home")
+                    self.add_accessory(ts)
+            # time.sleep(5)
+            # self.set_accessory_info()
+        # self.message_callback_del("homebridge/from/response")
+
+    def on_connect(self, mqttc, obj, flags, rc):
+        print("Connected with result code " + str(rc))
+
+        # Subscribing in on_connect() means that if we lose the connection and
+        # reconnect then subscriptions will be renewed.
+        # 订阅所有TOPIC
+        self.subscribe("homebridge/#")
+        # self.remove_accessories()
+        self.get_accessories()
+
+    def on_message(self, mqttc, obj, msg):
+        # print(msg.topic + " " + str(msg.payload))
+        pass
+
+    def on_publish(self, mqttc, obj, mid):
+        print("mid: " + str(mid))
+
+    def on_subscribe(self, mqttc, obj, mid, granted_qos):
+        print("Subscribed: " + str(mid) + " " + str(granted_qos))
+
+    def on_log(self, mqttc, obj, level, string):
+        print("LOG: " + string)
+        pass
+
+    def run(self):
+        self.message_callback_add(
+            "homebridge/from/get", self.on_message_from_get)
+        self.message_callback_add(
+            "homebridge/from/set", self.on_message_from_set)
+        self.message_callback_add(
+            "homebridge/from/response", self.on_message_from_response)
+        self.username_pw_set('rpi2-zerodayhong', 'rpi2rpi2')
+        self.reconnect_delay_set()
+        self.connect("10.0.0.5")
+        # rc = 0
+        # while rc == 0:
+        #     rc = self.loop()
+        # return rc
+        self.loop_forever()
+
+
+def get_command(addr, dev, val, func):
+    # construct the bit-stream of an instruction
+    if func == 0x01:
+        PLUS = 0
+    else:
+        PLUS = 7 << 5
+    cmd = struct.pack('6B', PLUS + addr, 0x06, dev, 0x04, func, val)
+    _crc = crc.calc_string(cmd, crc.INITIAL_MODBUS)
+    _crc = ((_crc & 0XFF) << 8) + ((_crc & 0xFF00) >> 8)
+    return cmd + struct.pack('H', _crc)
+
+
+def fmt2hex(str):
+    if str is not None:
+        return ':'.join(x.encode('hex') for x in str)  # python 2
+        # return ':'.join(hex(x) for x in str) # python 3
+    return None
+
 
 if __name__ == '__main__':
     try:
