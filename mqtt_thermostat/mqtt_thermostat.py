@@ -50,7 +50,7 @@ class ThermostatMQTTClient(mqtt.Client):
 
         self.thermostat_manufacturer = "zeroday"
         self.thermostat_model = "rpi1b"
-        self.thermostat_firmwareversion = "0.0.2"
+        self.thermostat_firmwarerevision = "0.0.2"
         self.thermostat_info = {
             "thermostat_diningroom": {
                 "addr": 1,
@@ -116,7 +116,7 @@ class ThermostatMQTTClient(mqtt.Client):
                 "manufacturer": self.thermostat_manufacturer,
                 "model": self.thermostat_model,
                 "serialnumber": self.thermostat_info[th]["serialnumber"],
-                "firmwareversion": self.thermostat_firmwareversion
+                "firmwarerevision": self.thermostat_firmwarerevision
             }
             # print(info)
             payload = json.dumps(info)
